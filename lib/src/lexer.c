@@ -234,7 +234,27 @@ static void ts_lexer__mark_end(TSLexer *_self) {
 static uint32_t ts_lexer__get_column(TSLexer *_self) {
   Lexer *self = (Lexer *)_self;
   self->did_get_column = true;
-  return self->current_position.extent.column;
+  uint32_t goal_byte = self->current_position.bytes;
+
+  ts_lexer_goto(self, (Length){
+                          .bytes = self->current_position.bytes - self->current_position.extent.column,
+                          .extent = {
+                              .row = self->current_position.extent.row,
+                              .column = 0,
+                          }});
+  if (!self->chunk_size)
+    ts_lexer__get_chunk(self);
+  if (!self->lookahead_size)
+    ts_lexer__get_lookahead(self);
+
+  uint32_t result = 0;
+  while (self->current_position.bytes < goal_byte)
+  {
+    ts_lexer__advance(&self->data, false);
+    result++;
+  }
+
+  return result;
 }
 
 // Is the lexer at a boundary between two disjoint included ranges of
